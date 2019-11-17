@@ -1,12 +1,17 @@
 class FactorioObject{ 
-    constructor(img, grid_x, grid_y){
+    constructor(img, grid_x, grid_y, ctx){
         this.image = img;
+        this.start_dir = 'south'
+        this.end_dir = 'north'
         this.x = grid_x;
         this.y = grid_y;
+        this.padding = 5
+        this.ctx = ctx
     }
-    draw(tile_size, ctx){
+    draw(){
         // Image, x_pos, y_pos, width, height
-        ctx.drawImage(this.image, this.x * tile_size, this.y * tile_size, tile_size, tile_size);
+        this.ctx.clearRect(this.x * tile_size + this.padding, this.y * tile_size + this.padding, tile_size - this.padding * 2, tile_size - this.padding * 2)
+        this.ctx.drawImage(this.image, this.x * tile_size, this.y * tile_size, tile_size, tile_size);
     }
 }
 
@@ -16,6 +21,8 @@ class Grid{
         this.canvas.id = 'main_canvas'
         this.canvas.width = width * tile_size
         this.canvas.height = height * tile_size
+        // Makes the canvas focusable for keydown events
+        this.canvas.tabIndex='1'
         document.body.appendChild(this.canvas);
 
         this.ctx = this.canvas.getContext('2d');
@@ -35,8 +42,9 @@ class Grid{
             this.ctx.stroke();
         }
 
-        this.canvas.addEventListener('click', this.canvas_on_click.bind(this), false);
-        
+        this.canvas.addEventListener('click'  , this.canvas_on_click.bind(this)  , false);
+        document.addEventListener('keydown', this.canvas_on_keydown.bind(this), false);
+
         // Starts as a width X height grid of null
         this.grid = []
 
@@ -51,32 +59,82 @@ class Grid{
 
     }
     
-    canvas_on_click(event){
+    // Takes the page coordinates and returns which grid position that lies in
+    get_tile_pos(pageX, pageY){
         var canvas_left = this.canvas.offsetLeft;
         var canvas_top = this.canvas.offsetTop;
-        var x = event.pageX - canvas_left,
-            y = event.pageY - canvas_top
+        var x = pageX - canvas_left,
+            y = pageY - canvas_top
         
         var grid_x = Math.floor(x / tile_size)
         var grid_y = Math.floor(y / tile_size)
+        
+        return {x : grid_x, y : grid_y}
+    }
 
+    canvas_on_click(event){
+        var tile = this.get_tile_pos(event.pageX, event.pageY)
 
         var obj = null;
         if(selected_tile == 'belt'){
-            obj = new FactorioObject(belt_img, grid_x, grid_y);
+            obj = new FactorioObject(belt_img, tile.x, tile.y, this.ctx);
         }
         else if(selected_tile == 'splitter'){
-            obj = new FactorioObject(splitter_img, grid_x, grid_y);
+            obj = new FactorioObject(splitter_img, tile.x, tile.y, this.ctx);
         }
         else if(selected_tile == 'underground'){
-            obj = new FactorioObject(underground_img, grid_x, grid_y);
+            obj = new FactorioObject(underground_img, tile.x, tile.y, this.ctx);
         }
         else{
             throw "Selected tile isn't belt, splitter, or underground :("
         }
         
-        this.grid[grid_x][grid_y] = obj
-        obj.draw(tile_size, this.ctx);
+        this.grid[tile.x][tile.y] = obj
+        obj.draw(tile_size);
+    }
+
+    // Takes in a dictionary with x y coords on the grid and rotates the cooresponding tile
+    rotate_tile(tile_pos){
+        var tile = this.grid[tile_pos.x][tile_pos.y]
+        if(tile != null){
+            tile.end_dir = rotation_map.get(tile.end_dir)
+            var up    = this.grid[tile_pos.x][tile_pos.y - 1]
+            var right = this.grid[tile_pos.x + 1][tile_pos.y]
+            var down  = this.grid[tile_pos.x][tile_pos.y + 1]
+            var left  = this.grid[tile_pos.x - 1][tile_pos.y]
+            
+            if (up != null && up.end_dir == 'south' && tile.end_dir != 'north'){
+                tile.start_dir = 'north'
+            }
+            else if (right != null && right.end_dir == 'west' && tile.end_dir != 'east'){
+                tile.start_dir = 'east'
+            }
+            else if (down != null && down.end_dir == 'north' && tile.end_dir != 'south'){
+                tile.start_dir = 'south'
+            }
+            else if (left != null && left.end_dir == 'east' && tile.end_dir != 'west'){
+                tile.start_dir = 'west'
+            }
+            else {
+                tile.start_dir = flip_map.get(tile.end_dir)
+            }
+
+            var image = new Image(tile_size, tile_size);
+            image.src = get_image_path('belt', tile.start_dir, tile.end_dir);
+            tile.image = image
+            image.onload = tile.draw.bind(tile)
+
+        }
+    }
+
+    canvas_on_keydown(event){
+        switch(event.keyCode){
+            // r key
+            case 82:
+                var tile_pos = this.get_tile_pos(mousePosition.x, mousePosition.y)
+                this.rotate_tile(tile_pos)
+                break;
+        }
     }
 }
 
@@ -102,6 +160,25 @@ function get_image_path(type, start_dir, end_dir){
 }
 
 tile_size = 60
+
+rotation_map = new Map();
+rotation_map.set('north', 'east')
+rotation_map.set('east' , 'south')
+rotation_map.set('south', 'west')
+rotation_map.set('west' , 'north')
+
+flip_map = new Map();
+flip_map.set('north', 'south')
+flip_map.set('south', 'north')
+flip_map.set('east',  'west' )
+flip_map.set('west',  'east' )
+
+// Global var to keep track of mouse position
+var mousePosition = {x:0, y:0};
+document.addEventListener('mousemove',function(mouseMoveEvent){
+mousePosition.x = mouseMoveEvent.pageX;
+mousePosition.y = mouseMoveEvent.pageY;
+});
 
 // GET THE IMAGE.
 var splitter_img = new Image(tile_size, tile_size);
