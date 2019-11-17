@@ -90,14 +90,13 @@ class Grid{
         }
         
         this.grid[tile.x][tile.y] = obj
+        this.update_tile({x:tile.x, y:tile.y})
         obj.draw(tile_size);
     }
-
-    // Takes in a dictionary with x y coords on the grid and rotates the cooresponding tile
-    rotate_tile(tile_pos){
+    
+    update_tile(tile_pos){
         var tile = this.grid[tile_pos.x][tile_pos.y]
         if(tile != null){
-            tile.end_dir = rotation_map.get(tile.end_dir)
             var up    = this.grid[tile_pos.x][tile_pos.y - 1]
             var right = this.grid[tile_pos.x + 1][tile_pos.y]
             var down  = this.grid[tile_pos.x][tile_pos.y + 1]
@@ -124,6 +123,19 @@ class Grid{
             tile.image = image
             image.onload = tile.draw.bind(tile)
 
+        }
+    }
+
+    // Takes in a dictionary with x y coords on the grid and rotates the cooresponding tile
+    rotate_tile(tile_pos){
+        var tile = this.grid[tile_pos.x][tile_pos.y]
+        if(tile != null){
+            tile.end_dir = rotation_map.get(tile.end_dir)
+            this.update_tile(tile_pos)
+            // Update the tile we're pointing at
+            var relative_position = number_map.get(tile.end_dir)
+            var absolute_position = {x:tile_pos.x + relative_position.x, y:tile_pos.y + relative_position.y}
+            this.update_tile(absolute_position)
         }
     }
 
@@ -172,6 +184,12 @@ flip_map.set('north', 'south')
 flip_map.set('south', 'north')
 flip_map.set('east',  'west' )
 flip_map.set('west',  'east' )
+
+number_map = new Map();
+number_map.set('north', {x:0, y:-1});
+number_map.set('east' , {x:1, y:0 });
+number_map.set('south', {x:0, y:1 });
+number_map.set('west' , {x:-1,y:0 });
 
 // Global var to keep track of mouse position
 var mousePosition = {x:0, y:0};
