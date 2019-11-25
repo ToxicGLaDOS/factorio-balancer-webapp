@@ -1,5 +1,6 @@
 class FactorioObject{ 
     constructor(img, grid_x, grid_y, ctx){
+        this.type = 'belt'
         this.image = img;
         this.start_dir = 'south'
         this.end_dir = 'north'
@@ -8,10 +9,51 @@ class FactorioObject{
         this.padding = 5
         this.ctx = ctx
     }
+    rotate(grid){
+        this.end_dir = rotation_map.get(this.end_dir)
+        this.update(grid)
+    }
+    update(grid) {
+        var up    = grid[this.x][this.y - 1]
+        var right = grid[this.x + 1][this.y]
+        var down  = grid[this.x][this.y + 1]
+        var left  = grid[this.x - 1][this.y]
+        
+        if (up != null && up.end_dir == 'south' && this.end_dir != 'north'){
+            this.start_dir = 'north'
+        }
+        else if (right != null && right.end_dir == 'west' && this.end_dir != 'east'){
+            this.start_dir = 'east'
+        }
+        else if (down != null && down.end_dir == 'north' && this.end_dir != 'south'){
+            this.start_dir = 'south'
+        }
+        else if (left != null && left.end_dir == 'east' && this.end_dir != 'west'){
+            this.start_dir = 'west'
+        }
+        else {
+            this.start_dir = flip_map.get(this.end_dir)
+        }
+
+        var image = new Image(tile_size, tile_size);
+        image.src = get_image_path(this.type, this.start_dir, this.end_dir);
+        this.image = image
+        image.onload = this.draw.bind(this)
+
+    }
     draw(){
         // Image, x_pos, y_pos, width, height
         this.ctx.clearRect(this.x * tile_size + this.padding, this.y * tile_size + this.padding, tile_size - this.padding * 2, tile_size - this.padding * 2)
         this.ctx.drawImage(this.image, this.x * tile_size, this.y * tile_size, tile_size, tile_size);
+    }
+}
+
+class Splitter extends FactorioObject{
+    constructor(img, grid_x, grid_y, ctx, side){
+        super(img, grid_x, grid_y, ctx);
+        this.type = 'splitter'
+        this.splitter_pair = null;
+        this.side = side
     }
 }
 
@@ -80,7 +122,7 @@ class Grid{
             obj = new FactorioObject(belt_img, tile.x, tile.y, this.ctx);
         }
         else if(selected_tile == 'splitter'){
-            obj = new FactorioObject(splitter_img, tile.x, tile.y, this.ctx);
+            obj = new Splitter(splitter_img, tile.x, tile.y, this.ctx, 'left');
         }
         else if(selected_tile == 'underground'){
             obj = new FactorioObject(underground_img, tile.x, tile.y, this.ctx);
@@ -94,35 +136,11 @@ class Grid{
         obj.draw(tile_size);
     }
     
+    // Takes a dictonary with xy coords on the grid and updates the cooresponding tile's image to match it's (start/end)_dir
     update_tile(tile_pos){
         var tile = this.grid[tile_pos.x][tile_pos.y]
         if(tile != null){
-            var up    = this.grid[tile_pos.x][tile_pos.y - 1]
-            var right = this.grid[tile_pos.x + 1][tile_pos.y]
-            var down  = this.grid[tile_pos.x][tile_pos.y + 1]
-            var left  = this.grid[tile_pos.x - 1][tile_pos.y]
-            
-            if (up != null && up.end_dir == 'south' && tile.end_dir != 'north'){
-                tile.start_dir = 'north'
-            }
-            else if (right != null && right.end_dir == 'west' && tile.end_dir != 'east'){
-                tile.start_dir = 'east'
-            }
-            else if (down != null && down.end_dir == 'north' && tile.end_dir != 'south'){
-                tile.start_dir = 'south'
-            }
-            else if (left != null && left.end_dir == 'east' && tile.end_dir != 'west'){
-                tile.start_dir = 'west'
-            }
-            else {
-                tile.start_dir = flip_map.get(tile.end_dir)
-            }
-
-            var image = new Image(tile_size, tile_size);
-            image.src = get_image_path('belt', tile.start_dir, tile.end_dir);
-            tile.image = image
-            image.onload = tile.draw.bind(tile)
-
+            tile.update(this.grid)
         }
     }
 
@@ -130,12 +148,12 @@ class Grid{
     rotate_tile(tile_pos){
         var tile = this.grid[tile_pos.x][tile_pos.y]
         if(tile != null){
-            tile.end_dir = rotation_map.get(tile.end_dir)
-            this.update_tile(tile_pos)
+            tile.rotate(this.grid)
             // Update the tile we're pointing at
             var relative_position = number_map.get(tile.end_dir)
-            var absolute_position = {x:tile_pos.x + relative_position.x, y:tile_pos.y + relative_position.y}
+            var absolute_position = {x:tile.x + relative_position.x, y:tile.y + relative_position.y}
             this.update_tile(absolute_position)
+
         }
     }
 
