@@ -6,7 +6,7 @@ class FactorioObject{
         this.end_dir = 'north'
         this.x = grid_x;
         this.y = grid_y;
-        this.padding = 5
+        this.padding = 0
         this.ctx = ctx
     }
     rotate(grid){
@@ -54,6 +54,18 @@ class Splitter extends FactorioObject{
         this.type = 'splitter'
         this.splitter_pair = null;
         this.side = side
+    }
+
+    rotate(grid){
+        this.end_dir = rotation_map.get(this.end_dir)
+        this.start_dir = flip_map.get(this.end_dir);
+        this.update(grid)
+    }
+    update(grid){
+        var image = new Image(tile_size, tile_size);
+        image.src = get_image_path(this.type, this.start_dir, this.end_dir);
+        this.image = image
+        image.onload = this.draw.bind(this)
     }
 }
 
